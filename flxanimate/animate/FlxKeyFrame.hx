@@ -28,12 +28,13 @@ class FlxKeyFrame
     {
         this.index = index;
         this.duration = duration;
-        
+
         this.name = name;
         _elements = (elements == null) ? [] : elements;
         this.colorEffect = colorEffect;
+        callbacks = [];
     }
-    
+
     function set_duration(duration:Int)
     {
         var difference:Int = cast this.duration - FlxMath.bound(duration, 1);
@@ -47,7 +48,7 @@ class FlxKeyFrame
         return duration;
     }
     public function add(element:EitherType<FlxElement, Function>)
-    {   
+    {
         if ((element is FlxElement))
         {
             var element:FlxElement = element;
