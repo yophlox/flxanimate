@@ -515,7 +515,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
         }
         sprite.draw(SpriteMap, matrix);
     
-        var frameName = '${curMeta.image}_${limb.name}';
+        var frameName = '${curMeta.image}/${limb.name}';
         var bitmap = FlxG.bitmap.add(sprite, false, frameName);
         bitmap.incrementUseCount();
         builtGraphics.push(bitmap);
