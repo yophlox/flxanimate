@@ -1,29 +1,29 @@
 package flxanimate.frames;
-import flixel.graphics.frames.FlxFramesCollection;
-import flxanimate.data.AnimationData.OneOfTwo;
-import openfl.geom.Rectangle;
-import flxanimate.data.SpriteMapData.Meta;
-import haxe.io.Bytes;
-import flxanimate.zip.Zip;
-import haxe.io.BytesInput;
-import flixel.math.FlxMatrix;
 import flixel.FlxG;
 import flixel.graphics.FlxGraphic;
 import flixel.graphics.frames.FlxAtlasFrames;
 import flixel.graphics.frames.FlxFrame.FlxFrameAngle;
+import flixel.graphics.frames.FlxFrame;
+import flixel.graphics.frames.FlxFramesCollection;
+import flixel.math.FlxMatrix;
 import flixel.math.FlxPoint;
 import flixel.math.FlxRect;
+import flixel.system.FlxAssets.FlxGraphicAsset;
+import flxanimate.data.AnimationData.OneOfTwo;
 import flxanimate.data.SpriteMapData.AnimateAtlas;
 import flxanimate.data.SpriteMapData.AnimateSpriteData;
+import flxanimate.data.SpriteMapData.Meta;
+import flxanimate.zip.Zip;
+import haxe.io.Bytes;
+import haxe.io.BytesInput;
 import openfl.Assets;
 import openfl.display.BitmapData;
-import flixel.system.FlxAssets.FlxGraphicAsset;
+import openfl.geom.Rectangle;
 #if haxe4
 import haxe.xml.Access;
 #else
 import haxe.xml.Fast as Access;
 #end
-import flixel.graphics.frames.FlxFrame;
 
 class FlxAnimateFrames extends FlxAtlasFrames
 {
@@ -36,6 +36,8 @@ class FlxAnimateFrames extends FlxAtlasFrames
         super(parent, border);
     }
     #end
+
+    var builtGraphics:Array<FlxGraphic> = [];
     
     static var data:AnimateAtlas = null;
     static var zip:Null<List<haxe.zip.Entry>>;
@@ -79,10 +81,10 @@ class FlxAnimateFrames extends FlxAtlasFrames
                 if (curImage != null)
                 {
                     var graphic = FlxG.bitmap.add(curImage);
-                    frames = new FlxAnimateFrames(graphic);
+                    if (frames == null) frames = new FlxAnimateFrames(graphic);
                     for (sprites in curJson.ATLAS.SPRITES)
                     {
-                        frames.pushFrame(textureAtlasHelper(curImage, sprites.SPRITE, curJson.meta));
+                        frames.buildLimb(curImage, sprites.SPRITE, curJson.meta);
                     }
                 }
                 else
@@ -99,16 +101,17 @@ class FlxAnimateFrames extends FlxAtlasFrames
                 if (curSpritemap != null)
                 {
                     var graphic = FlxG.bitmap.add(curSpritemap);
-                    var spritemapFrames = FlxAtlasFrames.findFrame(graphic);
+                    var spritemapFrames = FlxAnimateFrames.getExistingAnimateFrames(graphic);
                     if (spritemapFrames == null)
                     {
                         spritemapFrames = new FlxAnimateFrames(graphic);
                         for (curSprite in curJson.ATLAS.SPRITES)
                         {
-                            spritemapFrames.pushFrame(textureAtlasHelper(graphic.bitmap,curSprite.SPRITE, curJson.meta));
+                            spritemapFrames.buildLimb(graphic.bitmap,curSprite.SPRITE, curJson.meta);
                         }
                     }
                     graphic.addFrameCollection(spritemapFrames);
+                    if (frames == null) frames = new FlxAnimateFrames(graphic);
                     frames.addAtlas(spritemapFrames);
                 }
                 else
@@ -122,22 +125,22 @@ class FlxAnimateFrames extends FlxAtlasFrames
                 if (curSpritemap != null)
                 {
                     var graphic = FlxG.bitmap.add(curSpritemap);
-                    var spritemapFrames = FlxAtlasFrames.findFrame(graphic);
+                    var spritemapFrames = FlxAnimateFrames.getExistingAnimateFrames(graphic);
                     if (spritemapFrames == null)
                     {
                         spritemapFrames = new FlxAnimateFrames(graphic);
                         for (curSprite in curJson.ATLAS.SPRITES)
                         {
-                            spritemapFrames.pushFrame(textureAtlasHelper(graphic.bitmap,curSprite.SPRITE, curJson.meta));
+                            spritemapFrames.buildLimb(graphic.bitmap,curSprite.SPRITE, curJson.meta);
                         }
                     }
                     graphic.addFrameCollection(spritemapFrames);
-                    if (frames == null)
-                        frames = new FlxAnimateFrames(graphic);
+                    if (frames == null) frames = new FlxAnimateFrames(graphic);
                     frames.addAtlas(spritemapFrames);
                 }
-                else
+                else {
                     FlxG.log.error('the image called "${curJson.meta.image}" does not exist in Path $Path, maybe you changed the image Path somewhere else?');
+                }
                 i++;
             }
         }
@@ -148,6 +151,18 @@ class FlxAnimateFrames extends FlxAtlasFrames
         }
         return frames;
     }
+
+    public static function getExistingAnimateFrames(graphic:FlxGraphic):Null<FlxAnimateFrames> {
+        if (graphic == null) return null;
+
+        var atlasFrames:Array<FlxAtlasFrames> = cast graphic.getFramesCollections(FlxFrameCollectionType.ATLAS);
+        
+        if (atlasFrames.length > 0 && Std.isOfType(atlasFrames[0], FlxAnimateFrames))
+            return cast atlasFrames[0];
+
+        return null;
+    }
+
     #if (flixel < "5.4.0")
     public function addAtlas(collection:FlxFramesCollection, overwriteHash:Bool = false):FlxAtlasFrames
     {
@@ -487,7 +502,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
         Frames.addAtlasFrame(frameRect, sourceSize, offset, name, angle);
     }
 
-    static function textureAtlasHelper(SpriteMap:BitmapData, limb:AnimateSpriteData, curMeta:Meta)
+    function textureAtlasHelper(SpriteMap:BitmapData, limb:AnimateSpriteData, curMeta:Meta)
     {
         var width = (limb.rotated) ? limb.h : limb.w;
         var height = (limb.rotated) ? limb.w : limb.h;
@@ -500,13 +515,30 @@ class FlxAnimateFrames extends FlxAtlasFrames
         }
         sprite.draw(SpriteMap, matrix);
     
+        var frameName = '${curMeta.image}_${limb.name}';
+        var bitmap = FlxG.bitmap.add(sprite, false, frameName);
+        bitmap.incrementUseCount();
+        builtGraphics.push(bitmap);
+
         @:privateAccess
-        var curFrame = new FlxFrame(FlxG.bitmap.add(sprite));
+        var curFrame = new FlxFrame(bitmap);
         curFrame.name = limb.name;
         curFrame.sourceSize.set(width, height);
         curFrame.frame = new FlxRect(0,0, width, height);
         return curFrame;
     }
+
+    public function buildLimb(SpriteMap:BitmapData, limb:AnimateSpriteData, curMeta:Meta) {
+        this.pushFrame(this.textureAtlasHelper(SpriteMap, limb, curMeta));
+    }
+
+    override function destroy()
+	{
+        while (builtGraphics.length > 0)
+            builtGraphics.shift().decrementUseCount();
+		
+		super.destroy();
+	}
     
     static function texturePackerHelper(FrameName:String, FrameData:Dynamic, Frames:FlxAtlasFrames):Void
 	{
