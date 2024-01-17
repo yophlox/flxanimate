@@ -29,7 +29,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
 {
     #if (flixel < "5.4.0")
     public var parents:Array<FlxGraphic>;
-    
+
     public function new(parent:FlxGraphic, ?border:FlxPoint)
     {
         parents = [parent];
@@ -38,21 +38,21 @@ class FlxAnimateFrames extends FlxAtlasFrames
     #end
 
     var builtGraphics:Array<FlxGraphic> = [];
-    
+
     static var data:AnimateAtlas = null;
     static var zip:Null<List<haxe.zip.Entry>>;
 
-    
+
     /**
      * Parses the spritemaps into small sprites to use in the animation.
-     * 
+     *
      * @param Path          Where the Sprites are, normally you use it once when calling FlxAnimate already
      * @return              new sliced limbs for you to use ;)
      */
     public static function fromTextureAtlas(Path:String):FlxAtlasFrames
     {
         var frames:FlxAnimateFrames = null;
-        
+
         if (zip != null || haxe.io.Path.extension(Path) == "zip")
         {
             #if html5
@@ -80,11 +80,11 @@ class FlxAnimateFrames extends FlxAtlasFrames
                 var curImage = BitmapData.fromBytes(imagemap[curJson.meta.image]);
                 if (curImage != null)
                 {
-                    var graphic = FlxG.bitmap.add(curImage);
+                    var graphic = FlxG.bitmap.add(curImage, '$Path/${curJson.meta.image}');
                     if (frames == null) frames = new FlxAnimateFrames(graphic);
                     for (sprites in curJson.ATLAS.SPRITES)
                     {
-                        frames.buildLimb(curImage, sprites.SPRITE, curJson.meta);
+                        frames.buildLimb(curImage, sprites.SPRITE, curJson.meta, Path);
                     }
                 }
                 else
@@ -100,14 +100,14 @@ class FlxAnimateFrames extends FlxAtlasFrames
                 var curSpritemap = Assets.getBitmapData('$Path/${curJson.meta.image}');
                 if (curSpritemap != null)
                 {
-                    var graphic = FlxG.bitmap.add(curSpritemap);
+                    var graphic = FlxG.bitmap.add(curSpritemap, '$Path/${curJson.meta.image}');
                     var spritemapFrames = FlxAnimateFrames.getExistingAnimateFrames(graphic);
                     if (spritemapFrames == null)
                     {
                         spritemapFrames = new FlxAnimateFrames(graphic);
                         for (curSprite in curJson.ATLAS.SPRITES)
                         {
-                            spritemapFrames.buildLimb(graphic.bitmap,curSprite.SPRITE, curJson.meta);
+                            spritemapFrames.buildLimb(graphic.bitmap,curSprite.SPRITE, curJson.meta, Path);
                         }
                     }
                     graphic.addFrameCollection(spritemapFrames);
@@ -124,14 +124,14 @@ class FlxAnimateFrames extends FlxAtlasFrames
                 var curSpritemap = Assets.getBitmapData('$Path/${curJson.meta.image}');
                 if (curSpritemap != null)
                 {
-                    var graphic = FlxG.bitmap.add(curSpritemap);
+                    var graphic = FlxG.bitmap.add(curSpritemap, '$Path/${curJson.meta.image}');
                     var spritemapFrames = FlxAnimateFrames.getExistingAnimateFrames(graphic);
                     if (spritemapFrames == null)
                     {
                         spritemapFrames = new FlxAnimateFrames(graphic);
                         for (curSprite in curJson.ATLAS.SPRITES)
                         {
-                            spritemapFrames.buildLimb(graphic.bitmap,curSprite.SPRITE, curJson.meta);
+                            spritemapFrames.buildLimb(graphic.bitmap,curSprite.SPRITE, curJson.meta, Path);
                         }
                     }
                     graphic.addFrameCollection(spritemapFrames);
@@ -156,7 +156,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
         if (graphic == null) return null;
 
         var atlasFrames:Array<FlxAtlasFrames> = cast graphic.getFramesCollections(FlxFrameCollectionType.ATLAS);
-        
+
         if (atlasFrames.length > 0 && Std.isOfType(atlasFrames[0], FlxAnimateFrames))
             return cast atlasFrames[0];
 
@@ -168,7 +168,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
     {
         if (collection.parent == null)
             throw "Cannot add atlas with null parent";
-        
+
         if (parents.indexOf(collection.parent) == -1)
             parents.push(collection.parent);
         for (frame in collection.frames)
@@ -176,7 +176,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
         return this;
     }
     #end
-	
+
     /**
      * Sparrow spritesheet format parser with support of both of the versions and making the image completely optional to you.
      * @param Path The direction of the Xml you want to parse.
@@ -222,7 +222,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
 			var rotated = (texture.has.rotated && texture.att.rotated == "true");
 			var flipX = (texture.has.flipX && texture.att.flipX == "true");
 			var flipY = (texture.has.flipY && texture.att.flipY == "true");
-            
+
 			var rect = FlxRect.get(Std.parseFloat(texture.att.x), Std.parseFloat(texture.att.y), Std.parseFloat(width),
 				Std.parseFloat(height));
 
@@ -243,7 +243,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
 		return frames;
 	}
     /**
-     * 
+     *
      * @param Path the Json in specific, can be the path of it or the actual json
      * @param Image the image which the file is referencing **WARNING:** if you set the path as a json, it's obligatory to set the image!
      * @return A new instance of `FlxAtlasFrames`
@@ -334,7 +334,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
                 return null;
             }
         }
-        
+
 
         var graphic:FlxGraphic = FlxG.bitmap.add(Image, false);
 		if (graphic == null)
@@ -478,7 +478,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
 
         Frames.addAtlasFrame(frameRect, sourceSize, offset, name, angle);
     }
-    
+
     static function starlingHelper(FrameName:String, FrameData:Dynamic, Frames:FlxAtlasFrames):Void
     {
         var rotated:Bool = FrameData.rotated;
@@ -502,7 +502,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
         Frames.addAtlasFrame(frameRect, sourceSize, offset, name, angle);
     }
 
-    function textureAtlasHelper(SpriteMap:BitmapData, limb:AnimateSpriteData, curMeta:Meta)
+    function textureAtlasHelper(SpriteMap:BitmapData, limb:AnimateSpriteData, curMeta:Meta, bitmapName:String)
     {
         var width = (limb.rotated) ? limb.h : limb.w;
         var height = (limb.rotated) ? limb.w : limb.h;
@@ -514,32 +514,32 @@ class FlxAnimateFrames extends FlxAtlasFrames
             matrix.translate(0, height);
         }
         sprite.draw(SpriteMap, matrix);
-    
-        var frameName = '${curMeta.image}/${limb.name}';
-        var bitmap = FlxG.bitmap.add(sprite, false, frameName);
+
+        var bitmap = FlxG.bitmap.add(sprite, false, bitmapName);
         bitmap.incrementUseCount();
         builtGraphics.push(bitmap);
 
         @:privateAccess
         var curFrame = new FlxFrame(bitmap);
-        curFrame.name = limb.name;
+        curFrame.name = limb.name; // Must match the limb name for future lookups.
         curFrame.sourceSize.set(width, height);
         curFrame.frame = new FlxRect(0,0, width, height);
         return curFrame;
     }
 
-    public function buildLimb(SpriteMap:BitmapData, limb:AnimateSpriteData, curMeta:Meta) {
-        this.pushFrame(this.textureAtlasHelper(SpriteMap, limb, curMeta));
+    public function buildLimb(SpriteMap:BitmapData, limb:AnimateSpriteData, curMeta:Meta, path:String) {
+        var bitmapName = '${path}/${curMeta.image}:${limb.name}';
+        this.pushFrame(this.textureAtlasHelper(SpriteMap, limb, curMeta, bitmapName));
     }
 
     override function destroy()
 	{
         while (builtGraphics.length > 0)
             builtGraphics.shift().decrementUseCount();
-		
+
 		super.destroy();
 	}
-    
+
     static function texturePackerHelper(FrameName:String, FrameData:Dynamic, Frames:FlxAtlasFrames):Void
 	{
 		var rotated:Bool = FrameData.rotated;
@@ -565,7 +565,7 @@ class FlxAnimateFrames extends FlxAtlasFrames
 		return a < b ? b : a;
 }
 // code made by noonat 11 years ago, not mine lol
-class PropertyList 
+class PropertyList
 {
     static var _dateRegex:EReg = ~/(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2}:\d{2})Z)?/;
 
@@ -574,20 +574,20 @@ class PropertyList
      * the property list is empty, an empty object will be returned.
      * @param text Text contents of the property list file.
      */
-    static public function parse(text:String):Dynamic 
+    static public function parse(text:String):Dynamic
     {
         var fast = new Access(Xml.parse(text).firstElement());
         return fast.hasNode.dict ? parseDict(fast.node.dict) : {};
     }
 
-    static function parseDate(text:String):Date 
+    static function parseDate(text:String):Date
     {
-        if (!_dateRegex.match(text)) 
+        if (!_dateRegex.match(text))
         {
             throw 'Invalid date "' + text + '" (only yyyy-mm-dd and yyyy-mm-ddThh:mm:ssZ supported)';
         }
         text = _dateRegex.matched(1);
-        if (_dateRegex.matched(2) != null) 
+        if (_dateRegex.matched(2) != null)
         {
             text += ' ' + _dateRegex.matched(2);
         }
@@ -598,12 +598,12 @@ class PropertyList
     {
         var key:String = null;
         var result:Dynamic = {};
-        for (childNode in node.elements) 
+        for (childNode in node.elements)
         {
-            if (childNode.name == 'key') 
+            if (childNode.name == 'key')
             {
                 key = childNode.innerData;
-            } else if (key != null) 
+            } else if (key != null)
             {
                 Reflect.setField(result, key, parseValue(childNode));
             }
@@ -614,21 +614,21 @@ class PropertyList
     static function parseValue(node:Access):Dynamic
     {
         var value:Dynamic = null;
-        switch (node.name) 
+        switch (node.name)
         {
             case 'array':
             value = new Array<Dynamic>();
-            for (childNode in node.elements) 
+            for (childNode in node.elements)
             {
                 value.push(parseValue(childNode));
             }
-            
+
             case 'dict':
             value = parseDict(node);
-            
+
             case 'date':
             value = parseDate(node.innerData);
-            
+
             case 'string':
             var thing:Dynamic = node.innerData;
             if (thing.charAt(0) == "{")
@@ -640,16 +640,16 @@ class PropertyList
             value = thing;
             case 'data':
             value = node.innerData;
-            
+
             case 'true':
             value = true;
-            
+
             case 'false':
             value = false;
-            
+
             case 'real':
             value = Std.parseFloat(node.innerData);
-            
+
             case 'integer':
             value = Std.parseInt(node.innerData);
         }
@@ -659,7 +659,7 @@ class PropertyList
 typedef JSJson =
 {
     var images:Array<String>;
-    var frames:Array<Array<Int>>; 
+    var frames:Array<Array<Int>>;
 }
 typedef FlxSparrow = OneOfTwo<String, Xml>;
 typedef FlxJson = OneOfTwo<String, JsonNormal>;
@@ -669,7 +669,7 @@ typedef JsonNormal =
 	frames:Dynamic,
     meta:Meta
 }
-typedef Plist = 
+typedef Plist =
 {
     frames:Dynamic,
     metadata:Dynamic
